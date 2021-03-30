@@ -7,39 +7,6 @@ import dash_html_components as html
 from hw2_utils import *
 from datetime import date
 
-#1)
-cmt_rates = fetch_usdt_rates(2021)
-
-#2) Create Figure
-fig = go.Figure(
-    data = [
-        go.Surface(
-            z = cmt_rates,
-            y = cmt_rates.Date,
-            x = [
-                to_years(cmt_colname) for cmt_colname in list(
-                    filter(lambda x:' ' in x, cmt_rates.columns.values)
-                )
-            ]
-        )
-    ]
-)
-
-#3) Figure layout
-fig.update_layout(
-    title = 'Bond Yields, 2021',
-    scene = dict(
-        xaxis_title = 'Maturity (years)',
-        yaxis_title = 'Date',
-        zaxis_title = 'APR (%)',
-        zaxis = dict(ticksuffix = '%')
-    ),
-    autosize=False,
-    width=1500,
-    height=500,
-    margin=dict(l=65, r=50, b=65, t=90)
-)
-
 # 4) Create a Dash app
 app = dash.Dash(__name__)
 
@@ -63,32 +30,58 @@ app.layout = html.Div([
     html.Button("UPDATE", id='update-hist-dta-button', n_clicks = 0),
     # Hidden div inside the app that stores bonds rates data
     html.Div(id='bonds-historical-data', style={'display': 'none'}),
-    dcc.Graph(id='3d-graph', figure=fig)
+    dcc.Graph(id='bonds-3d-graph', style={'display': 'none'})
 ])
 
 @app.callback(
-    dash.dependencies.Output('bonds-historical-data', 'children'),
+    [dash.dependencies.Output('bonds-historical-data', 'children'),
+    dash.dependencies.Output('bonds-3d-graph', 'figure'),
+    dash.dependencies.Output('bonds-3d-graph', 'style')],
     dash.dependencies.Input("update-hist-dta-button", 'n_clicks'),
     [dash.dependencies.State('ivv-historical-data-range', 'start_date'),
      dash.dependencies.State('ivv-historical-data-range', 'end_date')],
+    prevent_initial_call=True
 )
 def update_bonds_data(n_clicks, startDate, endDate):
-    from hw2_utils import *
-    startDate = "2020-03-26"
-    endDate   = "2021-03-30"
     data_years = list(
         range(pd.to_datetime(startDate).date().year,
                            pd.to_datetime(endDate).date().year + 1, 1))
-    print(data_years)
 
     bonds_data = fetch_usdt_rates(data_years[0])
 
     if len(data_years) > 1:
         for year in data_years[1:]:
             bonds_data = pd.concat([bonds_data, fetch_usdt_rates(year)],
-                                    axis = 0)
+                                    axis = 0, ignore_index=True)
 
-    return bonds_data.to_json()
+    fig = go.Figure(
+        data=[
+            go.Surface(
+                z=bonds_data,
+                y=bonds_data.Date,
+                x=[
+                    to_years(cmt_colname) for cmt_colname in list(
+                        filter(lambda x: ' ' in x, bonds_data.columns.values)
+                    )
+                ]
+            )
+        ]
+    )
+
+    fig.update_layout(
+        scene=dict(
+            xaxis_title='Maturity (years)',
+            yaxis_title='Date',
+            zaxis_title='APR (%)',
+            zaxis=dict(ticksuffix='%')
+        ),
+        autosize=False,
+        width=1500,
+        height=500,
+        margin=dict(l=65, r=50, b=65, t=90)
+    )
+
+    return bonds_data.to_json(), fig, {'display': 'block'}
 
 
 @app.callback(
@@ -102,7 +95,6 @@ def update_bonds_data(n_clicks, startDate, endDate):
 )
 def update_historical_data(nclicks, bbg_id_1, start_date, end_date):
     historical_data = req_historical_data(bbg_id_1, start_date, end_date)
-    print(historical_data)
     string_prefix = 'You have selected: '
     if start_date is not None:
         start_date_object = date.fromisoformat(start_date)
