@@ -5,7 +5,7 @@
 from pandas import util
 from hw2_utils import *
 import time
-from datetime import datetime
+from datetime import datetime, date
 
 # Make two data frames for testing
 df1 = util.testing.makeDataFrame().head()
@@ -59,7 +59,7 @@ cmt_rates_2019 = fetch_usdt_rates(2019)
 
 # bind by rows and sort by date!
 cmt_rates = pd.concat([cmt_rates_2019, cmt_rates_2021, cmt_rates_2020], axis=0)
-print(cmt_rates.head()) # cmt_rates isn't sorted by Date...
+print(cmt_rates.tail()) # cmt_rates isn't sorted by Date...
 cmt_rates = cmt_rates.sort_values('Date') # so sort it!
 print(cmt_rates.head()) # looking good.
 
