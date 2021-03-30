@@ -6,6 +6,7 @@ import dash_core_components as dcc
 import dash_html_components as html
 from hw2_utils import *
 from datetime import date
+from model import model
 
 # 4) Create a Dash app
 app = dash.Dash(__name__)
@@ -13,7 +14,7 @@ app = dash.Dash(__name__)
 # 5) Create the page layout
 app.layout = html.Div([
     # Hidden div inside the app that stores bond features from model
-    html.Div(id='bond-yield-features', style={'display': 'none'}),
+    html.Div(id='model-output', style={'display': 'none'}),
     # Hidden div inside the app that stores IVV price data
     html.Div(id='ivv-historical-data', style={'display': 'none'}),
     # Date range for update historical data
@@ -22,7 +23,7 @@ app.layout = html.Div([
         min_date_allowed=date(2015, 1, 1),
         max_date_allowed=date.today(),
         initial_visible_month=date.today(),
-        start_date=date(2020, 3, 26),
+        start_date=date(2021, 3, 26),
         end_date=date.today()
     ),
     html.Div(id='output-container-date-picker-range'),
@@ -43,6 +44,10 @@ app.layout = html.Div([
     prevent_initial_call=True
 )
 def update_bonds_data(n_clicks, startDate, endDate):
+    # from hw2_utils import *
+    # startDate = "2021-03-26"
+    # endDate = "2021-03-30"
+
     data_years = list(
         range(pd.to_datetime(startDate).date().year,
                            pd.to_datetime(endDate).date().year + 1, 1))
@@ -53,6 +58,9 @@ def update_bonds_data(n_clicks, startDate, endDate):
         for year in data_years[1:]:
             bonds_data = pd.concat([bonds_data, fetch_usdt_rates(year)],
                                     axis = 0, ignore_index=True)
+
+    bonds_data = bonds_data[bonds_data.Date >= pd.to_datetime(startDate)]
+    bonds_data = bonds_data[bonds_data.Date <= pd.to_datetime(endDate)]
 
     fig = go.Figure(
         data=[
@@ -83,7 +91,6 @@ def update_bonds_data(n_clicks, startDate, endDate):
 
     return bonds_data.to_json(), fig, {'display': 'block'}
 
-
 @app.callback(
     [dash.dependencies.Output('ivv-historical-data', 'children'),
     dash.dependencies.Output('output-container-date-picker-range', 'children')],
@@ -107,6 +114,15 @@ def update_historical_data(nclicks, bbg_id_1, start_date, end_date):
     if len(string_prefix) == len('You have selected: '):
         string_prefix = 'Select a date to see it displayed here'
     return historical_data.to_json(), string_prefix
+
+@app.callback(
+    dash.dependencies.Output('model-output', 'children'),
+    [dash.dependencies.Input('bonds-historical-data', 'children'),
+    dash.dependencies.Input('ivv-historical-data', 'children')],
+    prevent_initial_call = True
+)
+def calculate_model(bonds, ivv):
+    model(bonds, ivv)
 
 # Run it!
 if __name__ == '__main__':

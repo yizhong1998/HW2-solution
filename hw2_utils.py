@@ -89,8 +89,6 @@ def req_historical_data(bbg_identifier, startDate, endDate):
             for msg in ev:
                 if str(msg.messageType()) == "HistoricalDataResponse":
 
-                    print(msg)
-
                     histdata = []
 
                     for fd in msg.getElement("securityData").getElement(
